@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LapKr · Cronómetro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: #0A0A0A;
+    color: #FFF;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* === LOGIN OVERLAY === */
+  #login-overlay {
+    position: fixed; inset: 0;
+    background: linear-gradient(135deg, #0A0A0A, #0F172A);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  #login-overlay .box {
+    background: #141414; border: 1px solid #2D7FF9; border-radius: 16px;
+    padding: 40px 30px; max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  #login-overlay .brand {
+    font-size: 38px; line-height: 1; margin-bottom: 4px; font-weight: 700;
+  }
+  #login-overlay .brand .lap { color: #FFF; }
+  #login-overlay .brand .kr { color: #2D7FF9; }
+  #login-overlay .subtitle {
+    font-family: monospace; font-size: 10px; color: #94A3B8;
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 28px;
+  }
+  #login-overlay p { color: #94A3B8; font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
+  #google-signin-btn {
+    background: #FFF; color: #000; border: none; padding: 12px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 10px; width: 100%;
+    justify-content: center; font-family: inherit;
+  }
+  #login-error { color: #EF4444; font-size: 12px; margin-top: 16px; min-height: 18px; }
+  #login-spinner {
+    display: inline-block; width: 32px; height: 32px;
+    border: 3px solid #1E293B; border-top-color: #2D7FF9;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  #login-unauthorized {
+    display: none; padding: 20px; background: rgba(239,68,68,0.1);
+    border: 1px solid #EF4444; border-radius: 8px; margin-top: 20px;
+  }
+  #login-unauthorized h3 { color: #EF4444; font-size: 16px; margin-bottom: 8px; }
+  #login-unauthorized p { color: #94A3B8; font-size: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* === APP === */
+  .container { max-width: 1100px; margin: 0 auto; padding: 16px; padding-bottom: 100px; }
+
+  /* USER BAR */
+  .user-bar {
+    background: #111; border: 1px solid #1E293B; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .user-bar img { width: 28px; height: 28px; border-radius: 50%; }
+  .user-bar .name { flex: 1; font-size: 12px; color: #E5E7EB; font-weight: 500; min-width: 100px; }
+  .user-bar .name .role {
+    display: block; font-size: 9px; font-family: monospace;
+    color: #2D7FF9; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;
+  }
+  .user-bar a, .user-bar button {
+    background: transparent; border: 1px solid #1E293B; color: #94A3B8;
+    padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer;
+    font-family: inherit; text-decoration: none;
+  }
+  .user-bar a:hover, .user-bar button:hover { color: #FFF; border-color: #2D7FF9; }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0F172A, #1E293B);
+    border: 1px solid #2D7FF9; border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .logo-text { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-text .lap { color: #FFF; }
+  .logo-text .kr { color: #2D7FF9; }
+  .header-subtitle {
+    color: #94A3B8; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; margin: 4px 0 0;
+  }
+
+  /* SESSION META BAR */
+  .session-bar {
+    background: #111; border: 1px solid #1E293B; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 14px;
+    display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px;
+    align-items: end;
+  }
+  .session-bar .field-group { display: flex; flex-direction: column; }
+  .session-bar label {
+    font-size: 10px; color: #94A3B8; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 6px; font-family: monospace;
+  }
+  .session-bar select, .session-bar input {
+    background: #0A0A0A; border: 1px solid #1E293B; color: #FFF;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit;
+  }
+  .session-bar select:focus, .session-bar input:focus { outline: none; border-color: #2D7FF9; }
+  .session-bar .btn-start, .session-bar .btn-stop, .session-bar .btn-archive {
+    padding: 8px 14px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; font-family: inherit; font-weight: 600;
+    border: 1px solid; white-space: nowrap;
+  }
+  .session-bar .btn-start { background: #2D7FF9; border-color: #2D7FF9; color: #FFF; }
+  .session-bar .btn-start:hover { background: #1E5BBE; }
+  .session-bar .btn-stop { background: transparent; border-color: #F59E0B; color: #F59E0B; }
+  .session-bar .btn-stop:hover { background: rgba(245,158,11,0.1); }
+  .session-bar .btn-archive { background: transparent; border-color: #1E293B; color: #94A3B8; }
+  .session-bar .btn-archive:hover { border-color: #2D7FF9; color: #FFF; }
+
+  /* CARRILES */
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .lane {
+    background: #111; border: 1px solid #1E293B; border-radius: 12px;
+    padding: 14px;
+  }
+  .lane.active { border-color: #2D7FF9; }
+  .lane .name-input {
+    background: transparent; border: none; color: #FFF;
+    font-size: 14px; font-weight: 500; padding: 0 0 8px;
+    width: 100%; font-family: inherit;
+    border-bottom: 1px solid #1E293B;
+  }
+  .lane .name-input:focus { outline: none; border-bottom-color: #2D7FF9; }
+  .lane .time-display {
+    font-size: 38px; font-weight: 500; font-family: monospace;
+    letter-spacing: -1px; color: #FFF; margin: 12px 0 6px; line-height: 1;
+  }
+  .lane .time-display.dim { color: #374151; }
+  .lane .meta {
+    display: flex; gap: 14px; font-size: 11px; color: #94A3B8;
+    margin-bottom: 12px;
+  }
+  .lane .meta .v { color: #FFF; font-weight: 500; font-family: monospace; }
+  .lane .meta .best { color: #2D7FF9; font-weight: 500; font-family: monospace; }
+  .lane .tap-btn {
+    background: #2D7FF9; border: none; color: #FFF; width: 100%;
+    padding: 16px; border-radius: 8px; font-size: 16px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: transform 0.05s, background 0.15s;
+  }
+  .lane .tap-btn:active { transform: scale(0.97); }
+  .lane .tap-btn:hover { background: #1E5BBE; }
+  .lane .tap-btn:disabled { background: #1E293B; color: #6B7280; cursor: not-allowed; }
+  .lane .lane-actions {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .lane .lane-actions button {
+    flex: 1; background: transparent; border: 1px solid #1E293B;
+    color: #94A3B8; padding: 6px; border-radius: 5px;
+    font-size: 11px; cursor: pointer; font-family: inherit;
+  }
+  .lane .lane-actions button:hover { color: #FFF; border-color: #2D7FF9; }
+  .lane .lane-actions button.danger:hover { color: #EF4444; border-color: #EF4444; }
+  .lane .laps {
+    margin-top: 10px; font-size: 11px; line-height: 1.7;
+    color: #6B7280; font-family: monospace;
+    max-height: 100px; overflow-y: auto;
+  }
+  .lane .laps .lap-row { display: flex; justify-content: space-between; }
+  .lane .laps .lap-row.best { color: #2D7FF9; }
+
+  /* GLOBAL ACTIONS */
+  .global-actions {
+    background: #111; border: 1px solid #1E293B; border-radius: 10px;
+    padding: 12px 16px; margin-top: 14px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .global-actions button {
+    background: transparent; border: 1px solid #1E293B; color: #94A3B8;
+    padding: 8px 14px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .global-actions button:hover { border-color: #2D7FF9; color: #FFF; }
+  .global-actions button.danger:hover { border-color: #EF4444; color: #EF4444; }
+
+  /* HISTORICO MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000;
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #111; border: 1px solid #2D7FF9; border-radius: 12px;
+    padding: 24px; max-width: 720px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 18px; font-weight: 600; color: #FFF; margin-bottom: 16px; }
+  .modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;
+    padding-top: 14px; border-top: 1px solid #1E293B;
+  }
+  .modal .btn {
+    background: transparent; border: 1px solid #1E293B; color: #94A3B8;
+    padding: 8px 14px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .modal .btn:hover { color: #FFF; border-color: #2D7FF9; }
+  .modal .btn.danger:hover { color: #EF4444; border-color: #EF4444; }
+
+  .history-filter {
+    margin-bottom: 14px;
+  }
+  .history-filter select {
+    background: #0A0A0A; border: 1px solid #1E293B; color: #FFF;
+    padding: 8px 10px; border-radius: 6px; font-size: 13px;
+    width: 100%; font-family: inherit;
+  }
+  .history-item {
+    background: #0A0A0A; border: 1px solid #1E293B; border-radius: 8px;
+    padding: 12px; margin-bottom: 8px; cursor: pointer;
+  }
+  .history-item:hover { border-color: #2D7FF9; }
+  .history-item .h-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .history-item .h-event { font-size: 13px; color: #FFF; font-weight: 500; }
+  .history-item .h-date { font-size: 10px; color: #94A3B8; font-family: monospace; }
+  .history-item .h-summary {
+    font-size: 11px; color: #94A3B8; font-family: monospace;
+  }
+  .history-detail .lane-summary {
+    background: #0A0A0A; border: 1px solid #1E293B; border-radius: 8px;
+    padding: 12px; margin-bottom: 8px;
+  }
+  .history-detail .lane-summary .ls-name {
+    font-size: 13px; color: #FFF; font-weight: 500; margin-bottom: 4px;
+  }
+  .history-detail .lane-summary .ls-stats {
+    font-size: 11px; color: #94A3B8; font-family: monospace; margin-bottom: 8px;
+  }
+  .history-detail .lane-summary .ls-stats .best { color: #2D7FF9; }
+  .history-detail .lane-summary .ls-laps {
+    font-size: 11px; color: #6B7280; font-family: monospace;
+    line-height: 1.7;
+  }
+  .history-detail .lane-summary .ls-laps .lap-row.best { color: #2D7FF9; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1E293B; border: 1px solid #2D7FF9;
+    color: #FFF; padding: 10px 20px; border-radius: 8px;
+    font-size: 13px; z-index: 5000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    animation: toastFade 2.5s forwards;
+  }
+  @keyframes toastFade {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    10%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  }
+
+  /* EMPTY */
+  .empty-state {
+    text-align: center; padding: 50px 20px; color: #6B7280; font-size: 13px;
+    background: #111; border: 1px solid #1E293B; border-radius: 12px;
+  }
+  .empty-state .emoji { font-size: 42px; margin-bottom: 12px; opacity: 0.5; }
+
+  @media (max-width: 600px) {
+    .container { padding: 10px; padding-bottom: 90px; }
+    .session-bar { grid-template-columns: 1fr 1fr; }
+    .session-bar .btn-start, .session-bar .btn-stop, .session-bar .btn-archive {
+      grid-column: span 2;
+    }
+    .lanes { grid-template-columns: 1fr; }
+    .header { padding: 16px 18px; }
+    .logo-text { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="box">
+    <div class="brand"><span class="lap">Lap</span><span class="kr">Kr</span></div>
+    <div class="subtitle">CRONÓMETRO</div>
+
+    <div id="login-loading" style="margin-bottom: 24px;">
+      <div id="login-spinner"></div>
+      <div style="margin-top: 12px; font-size: 12px; color: #94A3B8;">Cargando...</div>
+    </div>
+
+    <div id="login-buttons" style="display: none;">
+      <p>Inicia sesión para acceder al cronómetro de LapKr.</p>
+      <button id="google-signin-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Continuar con Google
+      </button>
+      <div id="login-error"></div>
+    </div>
+
+    <div id="login-unauthorized">
+      <div style="font-size: 36px; margin-bottom: 8px;">🚫</div>
+      <h3>Acceso no autorizado</h3>
+      <p id="unauthorized-email"></p>
+      <p style="margin-top: 12px;">Pide a Ricardo que te asigne acceso al cronómetro.</p>
+      <button onclick="window.firebaseSignOut().then(()=>location.reload())" style="margin-top: 16px; background: transparent; color: #94A3B8; border: 1px solid #1E293B; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit;">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="container" id="app-container" style="display:none;">
+
+  <div class="user-bar">
+    <img id="user-photo" src="" alt="">
+    <div class="name">
+      <span id="user-name">—</span>
+      <span class="role" id="user-role">—</span>
+    </div>
+    <a href="https://lapkr-dashboard.vercel.app">← Dashboard</a>
+    <button onclick="logout()">⏏ Salir</button>
+  </div>
+
+  <div class="header">
+    <div class="logo-text"><span class="lap">Lap</span><span class="kr">Kr</span></div>
+    <div class="header-subtitle">Cronómetro · sesión compartida del equipo</div>
+  </div>
+
+  <!-- SESSION META BAR -->
+  <div class="session-bar">
+    <div class="field-group">
+      <label>Evento</label>
+      <select id="session-evento">
+        <option value="">— seleccionar —</option>
+        <option value="KBR · entrenamiento">KBR · entrenamiento</option>
+        <option value="Sierra Esmeralda · entrenamiento">Sierra Esmeralda · entrenamiento</option>
+        <option value="Telmex R3 · AIMA Puebla">Telmex R3 · AIMA Puebla</option>
+        <option value="Telmex R4 · AIMA Puebla">Telmex R4 · AIMA Puebla</option>
+        <option value="SKUSA R7 · AIMA Puebla">SKUSA R7 · AIMA Puebla</option>
+        <option value="SKUSA R8 · AIMA Puebla">SKUSA R8 · AIMA Puebla</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Sesión / nota</label>
+      <input type="text" id="session-nota" placeholder="ej: Final · Tanda 3">
+    </div>
+    <button class="btn-start" id="btn-start-all" onclick="startAll()">▶ Iniciar todos</button>
+    <button class="btn-stop" id="btn-stop-all" onclick="stopAll()" style="display:none;">⏸ Pausar todos</button>
+    <button class="btn-archive" onclick="openHistoryModal()">📚 Histórico</button>
+  </div>
+
+  <!-- LANES -->
+  <div id="lanes-container" class="lanes"></div>
+
+  <!-- GLOBAL ACTIONS -->
+  <div class="global-actions">
+    <button onclick="archiveSession()">💾 Guardar sesión en histórico</button>
+    <button class="danger" onclick="resetSession()">🔄 Resetear sesión actual</button>
+  </div>
+
+</div>
+
+<!-- HISTORICO MODAL -->
+<div class="modal-overlay" id="history-modal">
+  <div class="modal">
+    <div class="modal-title">📚 Histórico de sesiones</div>
+    <div class="history-filter">
+      <select id="history-filter-event">
+        <option value="">Todos los eventos</option>
+      </select>
+    </div>
+    <div id="history-list"></div>
+    <div id="history-detail" class="history-detail" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeHistoryModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+  import { getFirestore, doc, collection, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAwceX51t0F7W_Ur67f82tPCqdDB2sJq-s",
+    authDomain: "task-e5b55.firebaseapp.com",
+    projectId: "task-e5b55",
+    storageBucket: "task-e5b55.firebasestorage.app",
+    messagingSenderId: "514103833698",
+    appId: "1:514103833698:web:72a3f1c51a7a581e240d3b",
+    measurementId: "G-HFEED951Z5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  window.firebaseAuth = getAuth(app);
+  window.firebaseDb = getFirestore(app);
+  window.firebaseProvider = new GoogleAuthProvider();
+  window.firebaseSignIn = () => signInWithPopup(window.firebaseAuth, window.firebaseProvider);
+  window.firebaseSignOut = () => signOut(window.firebaseAuth);
+  window.firebaseDoc = doc;
+  window.firebaseCollection = collection;
+  window.firebaseSetDoc = setDoc;
+  window.firebaseGetDoc = getDoc;
+  window.firebaseGetDocs = getDocs;
+  window.firebaseUpdateDoc = updateDoc;
+  window.firebaseDeleteDoc = deleteDoc;
+  window.firebaseOnSnapshot = onSnapshot;
+  window.firebaseQuery = query;
+  window.firebaseOrderBy = orderBy;
+  window.firebaseAddDoc = addDoc;
+  window.firebaseServerTimestamp = serverTimestamp;
+  window.firebaseOnAuthStateChanged = onAuthStateChanged;
+  window.firebaseReady = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<script>
+// ============================================================
+// LAPKR CRONOMETRO
+// Estado compartido vía Firestore: cronometro/activa
+// Histórico: cronometro-historico/{sessionId}
+// ============================================================
+
+const CARD_ID = 'cronometro';
+const MAX_LANES = 4;
+
+// ===== STATE =====
+window.currentUser = null;
+window.currentUserEmail = null;
+window.currentUserName = null;
+window.currentUserRole = null;
+window.sessionData = null;     // estado de la sesión activa
+let sessionUnsubscribe = null;
+let renderTimer = null;        // setInterval para actualizar UI cada 100ms
+let writeDebounceTimer = null; // debounce de writes a Firestore al editar nombres
+
+// Estructura de sessionData (en Firestore):
+// {
+//   evento: 'Telmex R3 · AIMA Puebla',
+//   nota: 'Final · Tanda 3',
+//   startedAt: 1716000000000 | null,    // ms epoch del inicio global
+//   pausedAt: null,                      // si pausado
+//   pausedAccum: 0,                      // ms acumulados en pausas
+//   isRunning: true|false,
+//   updatedBy: 'email',
+//   updatedAt: 1716000000000,
+//   lanes: [
+//     { id: 0, name: 'Jeshua #42', laps: [47.882, 48.105, ...], lastTapAt: 1716... }
+//     ...
+//   ]
+// }
+
+// ===== AUTH FLOW =====
+function showUnauthorized(strReason) {
+  document.getElementById('login-loading').style.display = 'none';
+  document.getElementById('login-buttons').style.display = 'none';
+  document.getElementById('login-unauthorized').style.display = 'block';
+  document.getElementById('unauthorized-email').textContent = strReason;
+}
+
+function showApp() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('app-container').style.display = '';
+}
+
+function initAuthFlow() {
+  if (!window.firebaseAuth) return;
+
+  window.firebaseOnAuthStateChanged(window.firebaseAuth, async (user) => {
+    if (!user) {
+      document.getElementById('login-loading').style.display = 'none';
+      document.getElementById('login-buttons').style.display = 'block';
+      return;
+    }
+
+    const strUserEmail = (user.email || '').toLowerCase();
+    window.currentUser = user;
+    window.currentUserEmail = strUserEmail;
+    window.currentUserName = user.displayName || strUserEmail;
+
+    try {
+      const objTeamRef = window.firebaseDoc(window.firebaseDb, 'config', 'lapkr-team');
+      const objSnap = await window.firebaseGetDoc(objTeamRef);
+
+      if (!objSnap.exists()) {
+        showUnauthorized(strUserEmail + ' — el equipo no está inicializado. Entra primero al dashboard.');
+        return;
+      }
+
+      const objData = objSnap.data();
+      const objMembers = objData.members || {};
+      const objMember = objMembers[strUserEmail];
+
+      if (!objMember) {
+        console.error('[Cronometro] Email no encontrado en members:', strUserEmail);
+        showUnauthorized(strUserEmail);
+        return;
+      }
+
+      window.currentUserRole = objMember.rol || 'worker';
+      if (objMember.name) window.currentUserName = objMember.name;
+
+      // Validar acceso a esta tarjeta
+      const lstTarjetas = objMember.tarjetas || [];
+      const boolHasAccess = window.currentUserRole === 'admin' || lstTarjetas.includes(CARD_ID);
+
+      if (!boolHasAccess) {
+        showUnauthorized(strUserEmail + ' — sin acceso a Cronómetro. Pide al admin que te lo asigne.');
+        return;
+      }
+
+      finishLogin();
+    } catch (objErr) {
+      console.error('[Cronometro] Auth error:', objErr);
+      showUnauthorized(strUserEmail + ' — error: ' + objErr.message);
+    }
+  });
+
+  document.getElementById('google-signin-btn').addEventListener('click', async () => {
+    document.getElementById('login-error').textContent = '';
+    try {
+      await window.firebaseSignIn();
+    } catch (objErr) {
+      document.getElementById('login-error').textContent = objErr.message;
+    }
+  });
+}
+
+function finishLogin() {
+  document.getElementById('user-photo').src = window.currentUser.photoURL || '';
+  document.getElementById('user-name').textContent = window.currentUserName;
+  document.getElementById('user-role').textContent =
+    window.currentUserRole === 'admin' ? 'Admin · LapKr' : 'Equipo · LapKr';
+
+  showApp();
+  subscribeToSession();
+  startRenderLoop();
+}
+
+function logout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  if (sessionUnsubscribe) sessionUnsubscribe();
+  if (renderTimer) clearInterval(renderTimer);
+  window.firebaseSignOut().then(() => location.reload());
+}
+window.logout = logout;
+
+// ===== SESSION SUBSCRIPTION =====
+function subscribeToSession() {
+  const objSessionRef = window.firebaseDoc(window.firebaseDb, 'cronometro', 'activa');
+  sessionUnsubscribe = window.firebaseOnSnapshot(objSessionRef, async (objSnap) => {
+    if (!objSnap.exists()) {
+      // Inicializar sesión vacía
+      await initEmptySession();
+      return;
+    }
+    window.sessionData = objSnap.data();
+    renderSessionMeta();
+    renderLanes();
+    renderGlobalButtons();
+  }, (objErr) => {
+    console.error('[Cronometro] Session subscription error:', objErr);
+  });
+}
+
+async function initEmptySession() {
+  const objSessionRef = window.firebaseDoc(window.firebaseDb, 'cronometro', 'activa');
+  const objSeed = {
+    evento: '',
+    nota: '',
+    startedAt: null,
+    pausedAt: null,
+    pausedAccum: 0,
+    isRunning: false,
+    updatedBy: window.currentUserEmail,
+    updatedAt: Date.now(),
+    lanes: [
+      { id: 0, name: 'Carril 1', laps: [], lastTapAt: null },
+      { id: 1, name: 'Carril 2', laps: [], lastTapAt: null }
+    ]
+  };
+  await window.firebaseSetDoc(objSessionRef, objSeed);
+}
+
+async function updateSession(objPatch) {
+  const objSessionRef = window.firebaseDoc(window.firebaseDb, 'cronometro', 'activa');
+  await window.firebaseUpdateDoc(objSessionRef, {
+    ...objPatch,
+    updatedBy: window.currentUserEmail,
+    updatedAt: Date.now()
+  });
+}
+
+// ===== TIME HELPERS =====
+function formatMs(intMs) {
+  if (!intMs || intMs < 0) intMs = 0;
+  const intTotalSec = intMs / 1000;
+  const intMin = Math.floor(intTotalSec / 60);
+  const intSec = intTotalSec - intMin * 60;
+  return String(intMin).padStart(2, '0') + ':' + intSec.toFixed(3).padStart(6, '0');
+}
+
+function formatLap(intMs) {
+  if (!intMs || intMs < 0) return '—';
+  return (intMs / 1000).toFixed(3);
+}
+
+function getElapsedMs() {
+  // Tiempo transcurrido global de la sesión actual
+  const objS = window.sessionData;
+  if (!objS || !objS.startedAt) return 0;
+  if (!objS.isRunning && objS.pausedAt) {
+    return objS.pausedAt - objS.startedAt - (objS.pausedAccum || 0);
+  }
+  return Date.now() - objS.startedAt - (objS.pausedAccum || 0);
+}
+
+// ===== RENDER LOOP (UI tick cada 100ms) =====
+function startRenderLoop() {
+  if (renderTimer) clearInterval(renderTimer);
+  renderTimer = setInterval(() => {
+    if (!window.sessionData) return;
+    if (!window.sessionData.isRunning) return;
+    // Solo actualiza los time-display, no re-renderiza todo el DOM
+    document.querySelectorAll('.lane').forEach(objEl => {
+      const intLaneId = parseInt(objEl.dataset.laneId);
+      const objLane = (window.sessionData.lanes || []).find(l => l.id === intLaneId);
+      if (!objLane) return;
+      const objDisplay = objEl.querySelector('.time-display');
+      if (objDisplay) {
+        objDisplay.textContent = formatMs(getCurrentLapMs(objLane));
+      }
+    });
+  }, 100);
+}
+
+function getCurrentLapMs(objLane) {
+  // ms desde el inicio de la vuelta actual del carril
+  if (!window.sessionData || !window.sessionData.isRunning) {
+    // Si está pausado, mostrar tiempo del último tap o 0
+    if (objLane.lastTapAt && window.sessionData?.pausedAt) {
+      return window.sessionData.pausedAt - objLane.lastTapAt;
+    }
+    return 0;
+  }
+  const intLapStart = objLane.lastTapAt || window.sessionData.startedAt;
+  if (!intLapStart) return 0;
+  return Date.now() - intLapStart;
+}
+
+// ===== RENDER META =====
+function renderSessionMeta() {
+  const objS = window.sessionData;
+  if (!objS) return;
+  const objEvento = document.getElementById('session-evento');
+  const objNota = document.getElementById('session-nota');
+  if (document.activeElement !== objEvento) objEvento.value = objS.evento || '';
+  if (document.activeElement !== objNota) objNota.value = objS.nota || '';
+}
+
+function renderGlobalButtons() {
+  const objS = window.sessionData;
+  if (!objS) return;
+  const objStart = document.getElementById('btn-start-all');
+  const objStop = document.getElementById('btn-stop-all');
+  if (objS.isRunning) {
+    objStart.style.display = 'none';
+    objStop.style.display = '';
+  } else {
+    objStart.style.display = '';
+    objStop.style.display = 'none';
+    objStart.textContent = objS.startedAt ? '▶ Reanudar todos' : '▶ Iniciar todos';
+  }
+}
+
+// ===== RENDER LANES =====
+function renderLanes() {
+  const objContainer = document.getElementById('lanes-container');
+  const objS = window.sessionData;
+  if (!objS || !objS.lanes) {
+    objContainer.innerHTML = '';
+    return;
+  }
+
+  const intBestOverall = computeBestLapOverall(objS.lanes);
+
+  // Re-render sólo si cambió la estructura de carriles o sus vueltas
+  // (no si solo cambia el tiempo corriendo — eso lo hace el render loop)
+  objContainer.innerHTML = '';
+
+  objS.lanes.forEach(objLane => {
+    const intBest = (objLane.laps && objLane.laps.length) ? Math.min(...objLane.laps) : null;
+    const intLastLap = (objLane.laps && objLane.laps.length) ? objLane.laps[objLane.laps.length - 1] : null;
+    const intCurrentLap = getCurrentLapMs(objLane);
+
+    const objEl = document.createElement('div');
+    objEl.className = 'lane' + (objS.isRunning ? ' active' : '');
+    objEl.dataset.laneId = objLane.id;
+
+    // Render historial (últimas 8 vueltas, más reciente arriba)
+    const lstLapsRev = (objLane.laps || []).slice().reverse().slice(0, 8);
+    const strLapsHtml = lstLapsRev.map((intLap, intIdx) => {
+      const intRealIdx = objLane.laps.length - intIdx;
+      const boolIsBest = intLap === intBest && intLap === intBestOverall;
+      const boolIsLaneBest = intLap === intBest && !boolIsBest;
+      const strClass = boolIsBest ? 'lap-row best' : (boolIsLaneBest ? 'lap-row' : 'lap-row');
+      const strBadge = boolIsBest ? ' ⚡' : (boolIsLaneBest ? ' •' : '');
+      return `<div class="${strClass}"><span>V${intRealIdx}</span><span>${formatLap(intLap * 1000)}${strBadge}</span></div>`;
+    }).join('');
+
+    objEl.innerHTML = `
+      <input class="name-input" type="text" value="${escapeHtml(objLane.name || ('Carril ' + (objLane.id + 1)))}"
+        data-lane-id="${objLane.id}" onblur="updateLaneName(${objLane.id}, this.value)"
+        onkeydown="if(event.key==='Enter') this.blur()">
+      <div class="time-display ${objS.isRunning ? '' : 'dim'}">${formatMs(intCurrentLap)}</div>
+      <div class="meta">
+        <div>Última <span class="v">${intLastLap !== null ? formatLap(intLastLap * 1000) : '—'}</span></div>
+        <div>Mejor <span class="best">${intBest !== null ? formatLap(intBest * 1000) : '—'}</span></div>
+      </div>
+      <button class="tap-btn" onclick="tapLap(${objLane.id})" ${!objS.isRunning ? 'disabled' : ''}>
+        TAP vuelta
+      </button>
+      <div class="lane-actions">
+        <button onclick="undoLap(${objLane.id})">↶ Borrar última</button>
+        <button class="danger" onclick="resetLane(${objLane.id})">🔄 Reset</button>
+        ${objS.lanes.length > 1 ? `<button class="danger" onclick="removeLane(${objLane.id})">🗑</button>` : ''}
+      </div>
+      <div class="laps">${strLapsHtml || '<div style="color:#374151;">Sin vueltas</div>'}</div>
+    `;
+    objContainer.appendChild(objEl);
+  });
+
+  // Botón para agregar carril si hay menos del máximo
+  if (objS.lanes.length < MAX_LANES) {
+    const objAdd = document.createElement('div');
+    objAdd.className = 'lane';
+    objAdd.style.display = 'flex';
+    objAdd.style.alignItems = 'center';
+    objAdd.style.justifyContent = 'center';
+    objAdd.style.minHeight = '180px';
+    objAdd.innerHTML = `
+      <button onclick="addLane()" style="background:transparent;border:1px dashed #2D7FF9;color:#2D7FF9;padding:14px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">
+        + Agregar carril
+      </button>
+    `;
+    objContainer.appendChild(objAdd);
+  }
+}
+
+function computeBestLapOverall(lstLanes) {
+  let intBest = null;
+  lstLanes.forEach(objLane => {
+    (objLane.laps || []).forEach(intLap => {
+      if (intBest === null || intLap < intBest) intBest = intLap;
+    });
+  });
+  return intBest;
+}
+
+function escapeHtml(strText) {
+  const objDiv = document.createElement('div');
+  objDiv.textContent = strText;
+  return objDiv.innerHTML;
+}
+
+// ===== ACTIONS =====
+async function startAll() {
+  const objS = window.sessionData;
+  if (!objS) return;
+  const intNow = Date.now();
+  if (objS.startedAt && objS.pausedAt) {
+    // Reanudar
+    await updateSession({
+      isRunning: true,
+      pausedAt: null,
+      pausedAccum: (objS.pausedAccum || 0) + (intNow - objS.pausedAt)
+    });
+  } else {
+    // Arranque desde cero
+    await updateSession({
+      isRunning: true,
+      startedAt: intNow,
+      pausedAt: null,
+      pausedAccum: 0,
+      lanes: objS.lanes.map(l => ({ ...l, lastTapAt: intNow }))
+    });
+  }
+}
+window.startAll = startAll;
+
+async function stopAll() {
+  const objS = window.sessionData;
+  if (!objS || !objS.isRunning) return;
+  await updateSession({
+    isRunning: false,
+    pausedAt: Date.now()
+  });
+}
+window.stopAll = stopAll;
+
+async function tapLap(intLaneId) {
+  const objS = window.sessionData;
+  if (!objS || !objS.isRunning) return;
+  const intNow = Date.now();
+  const lstNewLanes = objS.lanes.map(objLane => {
+    if (objLane.id !== intLaneId) return objLane;
+    const intLapStart = objLane.lastTapAt || objS.startedAt;
+    const intLapMs = intNow - intLapStart;
+    const intLapSec = intLapMs / 1000;
+    return {
+      ...objLane,
+      laps: [...(objLane.laps || []), intLapSec],
+      lastTapAt: intNow
+    };
+  });
+  await updateSession({ lanes: lstNewLanes });
+}
+window.tapLap = tapLap;
+
+async function undoLap(intLaneId) {
+  const objS = window.sessionData;
+  if (!objS) return;
+  const lstNewLanes = objS.lanes.map(objLane => {
+    if (objLane.id !== intLaneId) return objLane;
+    const lstLaps = (objLane.laps || []).slice(0, -1);
+    return { ...objLane, laps: lstLaps };
+  });
+  await updateSession({ lanes: lstNewLanes });
+}
+window.undoLap = undoLap;
+
+async function resetLane(intLaneId) {
+  if (!confirm('¿Resetear las vueltas de este carril?')) return;
+  const objS = window.sessionData;
+  const lstNewLanes = objS.lanes.map(objLane => {
+    if (objLane.id !== intLaneId) return objLane;
+    return { ...objLane, laps: [], lastTapAt: objS.isRunning ? Date.now() : null };
+  });
+  await updateSession({ lanes: lstNewLanes });
+}
+window.resetLane = resetLane;
+
+async function removeLane(intLaneId) {
+  const objS = window.sessionData;
+  if (objS.lanes.length <= 1) {
+    alert('Debe haber al menos 1 carril');
+    return;
+  }
+  if (!confirm('¿Quitar este carril? Se perderán sus vueltas.')) return;
+  const lstNewLanes = objS.lanes.filter(l => l.id !== intLaneId);
+  await updateSession({ lanes: lstNewLanes });
+}
+window.removeLane = removeLane;
+
+async function addLane() {
+  const objS = window.sessionData;
+  if (!objS || objS.lanes.length >= MAX_LANES) return;
+  const intNewId = Math.max(...objS.lanes.map(l => l.id), -1) + 1;
+  const lstNewLanes = [...objS.lanes, {
+    id: intNewId,
+    name: 'Carril ' + (objS.lanes.length + 1),
+    laps: [],
+    lastTapAt: objS.isRunning ? Date.now() : null
+  }];
+  await updateSession({ lanes: lstNewLanes });
+}
+window.addLane = addLane;
+
+function updateLaneName(intLaneId, strNewName) {
+  // Debounced para no spammear writes
+  if (writeDebounceTimer) clearTimeout(writeDebounceTimer);
+  writeDebounceTimer = setTimeout(async () => {
+    const objS = window.sessionData;
+    if (!objS) return;
+    const lstNewLanes = objS.lanes.map(objLane =>
+      objLane.id === intLaneId ? { ...objLane, name: strNewName } : objLane
+    );
+    await updateSession({ lanes: lstNewLanes });
+  }, 400);
+}
+window.updateLaneName = updateLaneName;
+
+async function resetSession() {
+  if (!confirm('¿Resetear toda la sesión actual? Se borrarán todas las vueltas. El histórico no se toca.')) return;
+  await initEmptySession();
+  showToast('Sesión reseteada');
+}
+window.resetSession = resetSession;
+
+async function archiveSession() {
+  const objS = window.sessionData;
+  if (!objS) return;
+  const intTotalLaps = (objS.lanes || []).reduce((sum, l) => sum + (l.laps || []).length, 0);
+  if (intTotalLaps === 0) {
+    alert('No hay vueltas registradas en esta sesión');
+    return;
+  }
+  if (!objS.evento) {
+    if (!confirm('La sesión no tiene evento seleccionado. ¿Guardar de todos modos?')) return;
+  }
+  if (!confirm(`¿Guardar sesión actual al histórico? (${intTotalLaps} vueltas en ${objS.lanes.length} carriles)`)) return;
+
+  try {
+    const objHistoricoRef = window.firebaseCollection(window.firebaseDb, 'cronometro-historico');
+    await window.firebaseAddDoc(objHistoricoRef, {
+      evento: objS.evento || 'Sin evento',
+      nota: objS.nota || '',
+      startedAt: objS.startedAt,
+      archivedAt: Date.now(),
+      archivedBy: window.currentUserEmail,
+      lanes: objS.lanes
+    });
+    await initEmptySession();
+    showToast('Sesión guardada al histórico');
+  } catch (objErr) {
+    alert('Error guardando: ' + objErr.message);
+  }
+}
+window.archiveSession = archiveSession;
+
+// Auto-save de evento y nota
+document.addEventListener('change', (objE) => {
+  if (objE.target.id === 'session-evento') {
+    updateSession({ evento: objE.target.value });
+  } else if (objE.target.id === 'session-nota') {
+    updateSession({ nota: objE.target.value });
+  }
+});
+document.addEventListener('input', (objE) => {
+  if (objE.target.id === 'session-nota') {
+    if (writeDebounceTimer) clearTimeout(writeDebounceTimer);
+    writeDebounceTimer = setTimeout(() => {
+      updateSession({ nota: objE.target.value });
+    }, 500);
+  }
+});
+
+// ===== HISTORICO =====
+async function openHistoryModal() {
+  document.getElementById('history-modal').classList.add('show');
+  document.getElementById('history-detail').style.display = 'none';
+  document.getElementById('history-list').style.display = '';
+  await loadHistory();
+}
+window.openHistoryModal = openHistoryModal;
+
+function closeHistoryModal() {
+  document.getElementById('history-modal').classList.remove('show');
+}
+window.closeHistoryModal = closeHistoryModal;
+
+async function loadHistory() {
+  const objList = document.getElementById('history-list');
+  objList.innerHTML = '<div style="color:#6B7280;font-size:12px;text-align:center;padding:20px;">Cargando...</div>';
+
+  try {
+    const objHistoricoRef = window.firebaseCollection(window.firebaseDb, 'cronometro-historico');
+    const objQ = window.firebaseQuery(objHistoricoRef, window.firebaseOrderBy('archivedAt', 'desc'));
+    const objSnaps = await window.firebaseGetDocs(objQ);
+
+    const lstSessions = [];
+    objSnaps.forEach(objSnap => {
+      lstSessions.push({ id: objSnap.id, ...objSnap.data() });
+    });
+
+    if (lstSessions.length === 0) {
+      objList.innerHTML = '<div style="color:#6B7280;font-size:12px;text-align:center;padding:20px;">Sin sesiones guardadas todavía.</div>';
+      return;
+    }
+
+    // Poblar filtro de eventos únicos
+    const setEventos = new Set();
+    lstSessions.forEach(s => { if (s.evento) setEventos.add(s.evento); });
+    const objFilter = document.getElementById('history-filter-event');
+    const strCurrentFilter = objFilter.value;
+    objFilter.innerHTML = '<option value="">Todos los eventos</option>';
+    Array.from(setEventos).sort().forEach(strEvt => {
+      const objOpt = document.createElement('option');
+      objOpt.value = strEvt;
+      objOpt.textContent = strEvt;
+      if (strEvt === strCurrentFilter) objOpt.selected = true;
+      objFilter.appendChild(objOpt);
+    });
+    objFilter.onchange = () => renderHistoryList(lstSessions);
+
+    renderHistoryList(lstSessions);
+    window._historyCache = lstSessions;
+  } catch (objErr) {
+    objList.innerHTML = '<div style="color:#EF4444;font-size:12px;padding:20px;">Error: ' + objErr.message + '</div>';
+  }
+}
+
+function renderHistoryList(lstSessions) {
+  const objList = document.getElementById('history-list');
+  const strFilter = document.getElementById('history-filter-event').value;
+  const lstFiltered = strFilter ? lstSessions.filter(s => s.evento === strFilter) : lstSessions;
+
+  if (lstFiltered.length === 0) {
+    objList.innerHTML = '<div style="color:#6B7280;font-size:12px;text-align:center;padding:20px;">Sin sesiones para este filtro.</div>';
+    return;
+  }
+
+  objList.innerHTML = '';
+  lstFiltered.forEach(objSession => {
+    const objEl = document.createElement('div');
+    objEl.className = 'history-item';
+    objEl.onclick = () => showHistoryDetail(objSession);
+
+    const intTotalLaps = (objSession.lanes || []).reduce((s, l) => s + (l.laps || []).length, 0);
+    const intBest = computeBestLapOverall(objSession.lanes || []);
+    const strDate = new Date(objSession.archivedAt).toLocaleString('es-MX', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+
+    objEl.innerHTML = `
+      <div class="h-top">
+        <span class="h-event">${escapeHtml(objSession.evento || 'Sin evento')}${objSession.nota ? ' · ' + escapeHtml(objSession.nota) : ''}</span>
+        <span class="h-date">${strDate}</span>
+      </div>
+      <div class="h-summary">
+        ${(objSession.lanes || []).length} carriles · ${intTotalLaps} vueltas
+        ${intBest !== null ? ' · mejor: ' + formatLap(intBest * 1000) + 's' : ''}
+      </div>
+    `;
+    objList.appendChild(objEl);
+  });
+}
+
+function showHistoryDetail(objSession) {
+  document.getElementById('history-list').style.display = 'none';
+  const objDetail = document.getElementById('history-detail');
+  objDetail.style.display = '';
+
+  const intBestOverall = computeBestLapOverall(objSession.lanes || []);
+
+  let strHtml = `
+    <button class="btn" onclick="backToHistoryList()" style="margin-bottom:14px;">← Volver al listado</button>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:15px;color:#FFF;font-weight:500;">${escapeHtml(objSession.evento || 'Sin evento')}</div>
+      ${objSession.nota ? `<div style="font-size:12px;color:#94A3B8;margin-top:4px;">${escapeHtml(objSession.nota)}</div>` : ''}
+      <div style="font-size:11px;color:#6B7280;font-family:monospace;margin-top:6px;">
+        Guardado por ${escapeHtml(objSession.archivedBy || '—')}
+        · ${new Date(objSession.archivedAt).toLocaleString('es-MX')}
+      </div>
+    </div>
+  `;
+
+  (objSession.lanes || []).forEach(objLane => {
+    const intBest = (objLane.laps && objLane.laps.length) ? Math.min(...objLane.laps) : null;
+    const intAvg = (objLane.laps && objLane.laps.length)
+      ? (objLane.laps.reduce((a, b) => a + b, 0) / objLane.laps.length)
+      : null;
+
+    const strLapsHtml = (objLane.laps || []).map((intLap, intIdx) => {
+      const boolIsBest = intLap === intBest;
+      const boolIsOverall = intLap === intBestOverall;
+      return `<div class="lap-row ${boolIsOverall ? 'best' : ''}">
+        <span>V${intIdx + 1}</span>
+        <span>${formatLap(intLap * 1000)}${boolIsOverall ? ' ⚡' : (boolIsBest ? ' •' : '')}</span>
+      </div>`;
+    }).join('');
+
+    strHtml += `
+      <div class="lane-summary">
+        <div class="ls-name">${escapeHtml(objLane.name)}</div>
+        <div class="ls-stats">
+          ${(objLane.laps || []).length} vueltas
+          ${intBest !== null ? ' · mejor: <span class="best">' + formatLap(intBest * 1000) + 's</span>' : ''}
+          ${intAvg !== null ? ' · promedio: ' + formatLap(intAvg * 1000) + 's' : ''}
+        </div>
+        <div class="ls-laps">${strLapsHtml || 'Sin vueltas'}</div>
+      </div>
+    `;
+  });
+
+  strHtml += `
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn danger" onclick="deleteHistorySession('${objSession.id}')">🗑 Borrar del histórico</button>
+    </div>
+  `;
+
+  objDetail.innerHTML = strHtml;
+}
+window.showHistoryDetail = showHistoryDetail;
+
+function backToHistoryList() {
+  document.getElementById('history-list').style.display = '';
+  document.getElementById('history-detail').style.display = 'none';
+}
+window.backToHistoryList = backToHistoryList;
+
+async function deleteHistorySession(strSessionId) {
+  if (!confirm('¿Borrar permanentemente esta sesión del histórico? No se puede deshacer.')) return;
+  try {
+    await window.firebaseDeleteDoc(window.firebaseDoc(window.firebaseDb, 'cronometro-historico', strSessionId));
+    showToast('Sesión borrada');
+    backToHistoryList();
+    await loadHistory();
+  } catch (objErr) {
+    alert('Error: ' + objErr.message);
+  }
+}
+window.deleteHistorySession = deleteHistorySession;
+
+// ===== TOAST =====
+function showToast(strMsg) {
+  const objExisting = document.querySelector('.toast');
+  if (objExisting) objExisting.remove();
+  const objToast = document.createElement('div');
+  objToast.className = 'toast';
+  objToast.textContent = strMsg;
+  document.body.appendChild(objToast);
+  setTimeout(() => objToast.remove(), 2600);
+}
+
+// ===== INIT =====
+if (window.firebaseReady) {
+  initAuthFlow();
+} else {
+  window.addEventListener('firebase-ready', initAuthFlow);
+}
+</script>
+</body>
+</html>
