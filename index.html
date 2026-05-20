@@ -124,7 +124,7 @@
   /* CARRILES */
   .lanes {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 12px;
   }
   .lane {
@@ -276,15 +276,64 @@
   }
   .empty-state .emoji { font-size: 42px; margin-bottom: 12px; opacity: 0.5; }
 
+  @media (max-width: 768px) {
+    .lanes { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .lane { padding: 12px; }
+    .lane .time-display { font-size: 30px; }
+    .lane .tap-btn { padding: 18px; font-size: 17px; }
+  }
+
   @media (max-width: 600px) {
-    .container { padding: 10px; padding-bottom: 90px; }
-    .session-bar { grid-template-columns: 1fr 1fr; }
-    .session-bar .btn-start, .session-bar .btn-stop, .session-bar .btn-archive {
-      grid-column: span 2;
+    body { padding: 10px; }
+    .container { padding: 8px; padding-bottom: 90px; }
+    .user-bar { padding: 6px 10px; gap: 8px; }
+    .user-bar .name { font-size: 11px; min-width: 80px; }
+    .user-bar a, .user-bar button { padding: 5px 8px; font-size: 10px; }
+    .header { padding: 14px 16px; }
+    .logo-text { font-size: 22px; }
+    .header-subtitle { font-size: 10px; letter-spacing: 1px; }
+    .session-bar {
+      grid-template-columns: 1fr;
+      padding: 12px;
+      gap: 10px;
     }
-    .lanes { grid-template-columns: 1fr; }
-    .header { padding: 16px 18px; }
-    .logo-text { font-size: 24px; }
+    .session-bar .btn-start,
+    .session-bar .btn-stop,
+    .session-bar .btn-archive {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+    }
+    .lanes { grid-template-columns: 1fr; gap: 10px; }
+    .lane { padding: 14px; }
+    .lane .time-display {
+      font-size: 42px;
+      text-align: center;
+      margin: 14px 0 8px;
+    }
+    .lane .meta {
+      justify-content: center;
+      font-size: 12px;
+    }
+    .lane .tap-btn {
+      padding: 22px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .lane .lane-actions button { padding: 8px 4px; font-size: 11px; }
+    .lane .laps { font-size: 12px; max-height: 140px; }
+    .global-actions { padding: 10px; gap: 6px; }
+    .global-actions button { flex: 1; padding: 10px; font-size: 12px; }
+    .modal { padding: 18px; }
+    .modal-title { font-size: 16px; }
+    .history-item { padding: 14px; }
+    .history-item .h-event { font-size: 14px; }
+  }
+
+  /* Tablets en horizontal y celulares en horizontal */
+  @media (max-width: 900px) and (orientation: landscape) {
+    .lanes { grid-template-columns: repeat(2, 1fr); }
+    .lane .time-display { font-size: 32px; }
   }
 </style>
 </head>
