@@ -112,7 +112,8 @@
   .session-bar .btn-start, .session-bar .btn-stop, .session-bar .btn-archive {
     padding: 8px 14px; border-radius: 6px; font-size: 12px;
     cursor: pointer; font-family: inherit; font-weight: 600;
-    border: 1px solid; white-space: nowrap;
+    border: 1px solid; white-space: nowrap; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis;
   }
   .session-bar .btn-start { background: #2D7FF9; border-color: #2D7FF9; color: #FFF; }
   .session-bar .btn-start:hover { background: #1E5BBE; }
@@ -275,6 +276,23 @@
     background: #111; border: 1px solid #1E293B; border-radius: 12px;
   }
   .empty-state .emoji { font-size: 42px; margin-bottom: 12px; opacity: 0.5; }
+
+  @media (max-width: 900px) {
+    .session-bar {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .session-bar .field-group { grid-column: span 1; }
+    .session-bar .btn-start,
+    .session-bar .btn-stop,
+    .session-bar .btn-archive {
+      grid-column: span 1;
+      width: 100%;
+      padding: 10px 8px;
+      font-size: 12px;
+      min-width: 0;
+    }
+  }
 
   @media (max-width: 768px) {
     .lanes { grid-template-columns: repeat(2, 1fr); gap: 10px; }
