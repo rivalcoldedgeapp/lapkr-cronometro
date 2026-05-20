@@ -569,12 +569,27 @@ function subscribeToSession() {
       await initEmptySession();
       return;
     }
-    window.sessionData = objSnap.data();
+    const objData = objSnap.data();
+    // Si el doc existe pero no tiene lanes (o array vacío), repararlo
+    if (!objData.lanes || !Array.isArray(objData.lanes) || objData.lanes.length === 0) {
+      console.log('[Cronometro] Sesión sin lanes, reparando...');
+      await window.firebaseUpdateDoc(objSessionRef, {
+        lanes: [
+          { id: 0, name: 'Carril 1', laps: [], lastTapAt: null },
+          { id: 1, name: 'Carril 2', laps: [], lastTapAt: null }
+        ],
+        updatedBy: window.currentUserEmail,
+        updatedAt: Date.now()
+      });
+      return; // El snapshot listener disparará otra vez con los lanes nuevos
+    }
+    window.sessionData = objData;
     renderSessionMeta();
     renderLanes();
     renderGlobalButtons();
   }, (objErr) => {
     console.error('[Cronometro] Session subscription error:', objErr);
+    showToast('Error de conexión: ' + objErr.message);
   });
 }
 
